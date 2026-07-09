@@ -53,6 +53,26 @@ jobs:
           git merge upstream/main --no-edit
           echo "merge_success=true" >> $GITHUB_OUTPUT
 
+      - name: Apply fork patches (restore submodule)
+        if: steps.merge.outputs.merge_success == 'true'
+        id: patch
+        run: |
+          # 恢复子模块到 fork 的自定义版本（防止被上游覆盖）
+          git submodule update --init overwrite/OpenClash_Overwrite
+          cd overwrite/OpenClash_Overwrite
+          git checkout b1327912a73421fa4abd583b720dabcf5acd1fc5 2>/dev/null || true
+          cd ../..
+          git add overwrite/OpenClash_Overwrite
+
+          # 检查是否有改动
+          if git diff --cached --quiet; then
+            echo "no_patch_needed=true" >> $GITHUB_OUTPUT
+            git reset --hard HEAD
+          else
+            echo "no_patch_needed=false" >> $GITHUB_OUTPUT
+            git commit -m "fix(upstream-sync): restore fork's OpenClash_Overwrite submodule version"
+          fi
+
       - name: Push to origin
         if: steps.merge.outputs.merge_success == 'true'
         run: |
